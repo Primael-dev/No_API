@@ -14,7 +14,15 @@ export const twoFactorController = {
 
   async confirm(req, res, next) {
     try {
-      res.status(200).json({ message: '2FA confirm - TODO' });
+      const userId = req.user.userId;
+      const { code, secret } = req.body;
+
+      if (!code || !secret) {
+        return res.status(400).json({ error: 'Code and secret are required' });
+      }
+
+      const result = await twoFactorService.confirm(userId, code, secret);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
