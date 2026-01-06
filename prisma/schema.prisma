@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  password              String?
+  firstName             String?
+  lastName              String?
+  emailVerifiedAt       DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabledAt    DateTime?
+  disabledAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  oauthAccounts         OAuthAccount[]
+  refreshTokens         RefreshToken[]
+  blacklistedTokens     BlacklistedAccessToken[]
+  verificationTokens    VerificationToken[]
+  passwordResetTokens   PasswordResetToken[]
+  loginHistory          LoginHistory[]
+}
+
+model OAuthAccount {
+  id                    String    @id @default(cuid())
+  provider              String
+  providerId            String
+  userId                String
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model RefreshToken {
+  id                    String    @id @default(cuid())
+  token                 String    @unique
+  userId                String
+  userAgent             String?
+  ipAddress             String?
+  expiresAt             DateTime
+  revokedAt             DateTime?
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BlacklistedAccessToken {
+  id                    String    @id @default(cuid())
+  token                 String    @unique
+  userId                String
+  expiresAt             DateTime
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id                    String    @id @default(cuid())
+  token                 String    @unique
+  userId                String
+  expiresAt             DateTime
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id                    String    @id @default(cuid())
+  token                 String    @unique
+  userId                String
+  expiresAt             DateTime
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginHistory {
+  id                    String    @id @default(cuid())
+  userId                String
+  ipAddress             String?
+  userAgent             String?
+  success               Boolean
+  createdAt             DateTime  @default(now())
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
