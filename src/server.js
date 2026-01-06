@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { registerEmailRoutes } from './routes/email.js';
+import { registerTwoFactorRoutes } from './routes/twoFactor.js';
+
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ app.use(express.json());
 // ============================================
 
 registerEmailRoutes(app);
+registerTwoFactorRoutes(app);
+
 
 // Health check
 app.get('/', (req, res) => {
