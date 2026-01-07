@@ -1,19 +1,22 @@
 import { verifyAccessToken } from '../utils/jwt.js';
+import { UnauthorizedException } from '#utils/exceptions';
 
 export function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+   throw new UnauthorizedException('Missing or invalid authorization header' );
   }
 
   const token = authHeader.slice(7);
 
   try {
     const decoded = verifyAccessToken(token);
-    req.user = decoded;
+    req.user = {
+      id: decoded.userId || decoded.id 
+    };
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
+    throw new UnauthorizedException('Invalid or expired token' );
   }
 }
