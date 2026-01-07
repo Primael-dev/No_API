@@ -30,7 +30,15 @@ export const twoFactorController = {
 
   async disable(req, res, next) {
     try {
-      res.status(200).json({ message: '2FA disable - TODO' });
+      const userId = req.user.userId;
+      const { code } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: 'Code is required' });
+      }
+
+      const result = await twoFactorService.disable(userId, code);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
