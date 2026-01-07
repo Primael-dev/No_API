@@ -46,7 +46,14 @@ export const twoFactorController = {
 
   async verify(req, res, next) {
     try {
-      res.status(200).json({ message: '2FA verify - TODO' });
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res.status(400).json({ error: 'Email and code are required' });
+      }
+
+      const result = await twoFactorService.verify(email, code);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
