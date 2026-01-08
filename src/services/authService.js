@@ -1,23 +1,27 @@
-import { PrismaClient } from '@prisma/client';
-import { hashPassword, verifyPassword } from '../utils/password.js';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
-
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma.js';
+import bcrypt from 'bcryptjs';
 
 export const authService = {
+  // Inscription
+  async register(userData) {
+    const { email, password, firstName, lastName } = userData;
 
-  async registerUser(email, password, firstName, lastName) {
+    // Vérifier si l'email existe
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
 
     if (existingUser) {
-      throw new Error('Email already in use');
+      const error = new Error('Cet email est déjà utilisé');
+      error.statusCode = 409;
+      throw error;
     }
 
-    const hashedPassword = await hashPassword(password);
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+    // Créer l'utilisateur
+    return await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
@@ -25,103 +29,59 @@ export const authService = {
         lastName
       }
     });
-
-    return {
-      userId: user.id,
-      email: user.email
-    };
   },
 
-  async loginUser(email, password, ipAddress, userAgent) {
+  // Connexion
+  async login(email, password, loginInfo) {
+    // Chercher l'utilisateur
     const user = await prisma.user.findUnique({
       where: { email }
     });
 
-    if (!user) {
-      await prisma.loginHistory.create({
-        data: {
-          userId: null,
-          ipAddress,
-          userAgent,
-          success: false
-        }
-      });
-      throw new Error('Invalid email or password');
+    let isPasswordValid = false;
+
+    if (user && user.password) {
+      isPasswordValid = await bcrypt.compare(password, user.password);
     }
 
-    const isPasswordValid = await verifyPassword(password, user.password);
-
-    if (!isPasswordValid) {
-      await prisma.loginHistory.create({
-        data: {
-          userId: user.id,
-          ipAddress,
-          userAgent,
-          success: false
-        }
-      });
-      throw new Error('Invalid email or password');
-    }
-
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        userAgent,
-        ipAddress,
-        expiresAt
-      }
-    });
-
+    // Enregistrer dans l'historique
     await prisma.loginHistory.create({
       data: {
-        userId: user.id,
-        ipAddress,
-        userAgent,
-        success: true
+        userId: user ? user.id : null,
+        ipAddress: loginInfo.ipAddress,
+        userAgent: loginInfo.userAgent,
+        success: (user !== null && isPasswordValid)
       }
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { updatedAt: new Date() }
-    });
+    // Vérifier les identifiants
+    if (!user || !isPasswordValid) {
+      const error = new Error('Identifiants incorrects');
+      error.statusCode = 401;
+      throw error;
+    }
 
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName
-      }
-    };
+    // Vérifier que le compte n'est pas désactivé
+    if (user.disabledAt) {
+      const error = new Error('Ce compte a été désactivé');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    return user;
   },
 
-  async logoutUser(userId, accessToken) {
-    await prisma.blacklistedAccessToken.create({
+  // Déconnexion
+  async logout(userId, token) {
+    if (!token) return;
+
+    // Ajouter le token à la blacklist
+    return await prisma.blacklistedAccessToken.create({
       data: {
-        token: accessToken,
+        token,
         userId,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
       }
-    });
-
-    await prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() }
-    });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { updatedAt: new Date() }
     });
   }
 };
