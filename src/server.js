@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
+import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use(express.json());
 // Routes
 // ============================================
 
+app.use('/api/auth', authRoutes);
 app.use('/api/auth', sessionRoutes);
 
 // Health check
