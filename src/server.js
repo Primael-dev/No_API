@@ -1,7 +1,3 @@
-// ============================================
-// src/server.js - Express Server
-// ============================================
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -10,6 +6,9 @@ import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
+import { registerEmailRoutes } from './routes/email.js';
+import { registerTwoFactorRoutes } from './routes/twoFactor.js';
+
 
 dotenv.config();
 
@@ -30,6 +29,9 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', sessionRoutes);
+registerEmailRoutes(app);
+registerTwoFactorRoutes(app);
+
 
 // Health check
 app.get('/', (req, res) => {
