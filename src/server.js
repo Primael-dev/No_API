@@ -8,6 +8,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { registerEmailRoutes } from './routes/email.js';
 import { registerTwoFactorRoutes } from './routes/twoFactor.js';
+import { registerProfileRoutes } from './routes/profile.routes.js';
+
 
 
 dotenv.config();
@@ -31,6 +33,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth', sessionRoutes);
 registerEmailRoutes(app);
 registerTwoFactorRoutes(app);
+registerProfileRoutes(app);
+
 
 
 // Health check

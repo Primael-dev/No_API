@@ -1,43 +1,41 @@
-const profileService = require('../services/profile.service');
+import { profileService } from '../services/profile.service.js';
 
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await profileService.getProfile(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
-    res.json(user);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
+export const profileController = {
+  async getProfile(req, res, next) {
+    try {
+      const user = await profileService.getProfile(req.user.userId);
+      if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+      res.json(user);
+    } catch (err) {
+      next(err);
+    }
+  },
 
-exports.updateProfile = async (req, res) => {
-  try {
-    const { firstName, lastName } = req.body;
-    const updatedUser = await profileService.updateProfile(req.user.id, firstName, lastName);
-    res.json(updatedUser);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
+  async updateProfile(req, res, next) {
+    try {
+      const { firstName, lastName } = req.body;
+      const updatedUser = await profileService.updateProfile(req.user.userId, firstName, lastName);
+      res.json(updatedUser);
+    } catch (err) {
+      next(err);
+    }
+  },
 
-exports.deleteAccount = async (req, res) => {
-  try {
-    const deletedUser = await profileService.deleteAccount(req.user.id);
-    res.json({ message: 'Compte désactivé avec succès', user: deletedUser });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
+  async deleteAccount(req, res, next) {
+    try {
+      const deletedUser = await profileService.deleteAccount(req.user.userId);
+      res.json({ message: 'Compte désactivé avec succès', user: deletedUser });
+    } catch (err) {
+      next(err);
+    }
+  },
 
-exports.getLoginHistory = async (req, res) => {
-  try {
-    const history = await profileService.getLoginHistory(req.user.id);
-    res.json(history);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
+  async getLoginHistory(req, res, next) {
+    try {
+      const history = await profileService.getLoginHistory(req.user.userId);
+      res.json(history);
+    } catch (err) {
+      next(err);
+    }
   }
 };
