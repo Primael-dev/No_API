@@ -1,16 +1,11 @@
-const express = require('express');
-const router = express.Router();
+import { Router } from 'express';
+import { profileController } from '../controllers/profile.controller.js';
+import { authMiddleware } from '../middleware/auth.js';
 
-// Controller
-const profileController = require('../controllers/profile.controller');
-
-// Middleware pour protéger la route
-const authMiddleware = require('../middlewares/auth.middleware');
+const router = Router();
 
 // GET /profile - Récupérer le profil
 router.get('/', authMiddleware, profileController.getProfile);
-
-module.exports = router;
 
 // PATCH /profile - Modifier le profil
 router.patch('/', authMiddleware, profileController.updateProfile);
@@ -19,4 +14,8 @@ router.patch('/', authMiddleware, profileController.updateProfile);
 router.delete('/account', authMiddleware, profileController.deleteAccount);
 
 // GET /login-history
-router.get('/login-history', authMiddleware, profileController.getLoginHistory); 
+router.get('/login-history', authMiddleware, profileController.getLoginHistory);
+
+export function registerProfileRoutes(app) {
+  app.use('/api/auth/profile', router);
+}

@@ -1,60 +1,58 @@
-const prisma = require('../prisma');
+import { PrismaClient } from '@prisma/client';
 
-const getProfile = async (userId) => {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      emailVerifiedAt: true,
-      twoFactorEnabledAt: true,
-      disabledAt: true,
-    },
-  });
-};
+const prisma = new PrismaClient();
 
-const updateProfile = async (userId, firstName, lastName) => {
-  return prisma.user.update({
-    where: { id: userId },
-    data: { firstName, lastName },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      emailVerifiedAt: true,
-      twoFactorEnabledAt: true,
-      disabledAt: true,
-    },
-  });
-};
+export const profileService = {
+  async getProfile(userId) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerifiedAt: true,
+        twoFactorEnabledAt: true,
+        disabledAt: true,
+      },
+    });
+  },
 
-const deleteAccount = async (userId) => {
-  return prisma.user.update({
-    where: { id: userId },
-    data: { disabledAt: new Date() },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      disabledAt: true
-    },
-  });
-};
+  async updateProfile(userId, firstName, lastName) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { firstName, lastName, updatedAt: new Date() },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerifiedAt: true,
+        twoFactorEnabledAt: true,
+        disabledAt: true,
+      },
+    });
+  },
 
-const getLoginHistory = async (userId) => {
-  return prisma.loginHistory.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' }
-  });
-};
+  async deleteAccount(userId) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { disabledAt: new Date() },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        disabledAt: true
+      },
+    });
+  },
 
-module.exports = {
-  getProfile,
-  updateProfile,
-  deleteAccount,
-  getLoginHistory
+  async getLoginHistory(userId) {
+    return prisma.loginHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+  }
 };
