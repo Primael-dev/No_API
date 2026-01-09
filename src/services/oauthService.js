@@ -1,8 +1,8 @@
-    const { google } = require('googleapis')
-const bcrypt = require('bcrypt')
-const crypto = require('crypto')
-const jwt = require('jsonwebtoken')
-const prisma = require('../lib/prisma')
+import { google } from 'googleapis'
+import bcrypt from 'bcrypt'
+import crypto from 'crypto'
+import jwt from 'jsonwebtoken'
+import prisma from '../lib/prisma.js'
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -115,4 +115,4 @@ const oauthService = {
   }
 }
 
-module.exports = oauthService   
+export default oauthService   

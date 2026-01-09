@@ -11,9 +11,10 @@ export function authMiddleware(req, res, next) {
 
   try {
     const decoded = verifyAccessToken(token);
-    req.user = decoded;
+    req.user = { userId: decoded.userId };
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
+

@@ -1,5 +1,5 @@
-const oauthService = require('../services/oauthService')
-const jwt = require('jsonwebtoken')
+import oauthService from '../services/oauthService.js'
+import jwt from 'jsonwebtoken'
 
 const oauthController = {
   async redirectToGoogle(req, res) {
@@ -30,4 +30,4 @@ const oauthController = {
   }
 }
 
-module.exports = oauthController
+export default oauthController

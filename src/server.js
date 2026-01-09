@@ -1,15 +1,17 @@
-// ============================================
-// src/server.js - Express Server
-// ============================================
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import passport from 'passport';
 import session from 'express-session';
+import authRoutes from './routes/auth.js';
+import sessionRoutes from './routes/sessions.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
+import { registerEmailRoutes } from './routes/email.js';
+import { registerTwoFactorRoutes } from './routes/twoFactor.js';
+import { registerProfileRoutes } from './routes/profile.routes.js';
+
 
 // Import de vos routes
 import passwordRoutes from './routes/password.js';
@@ -58,6 +60,14 @@ import('./config/passport.js').catch(err => {
 // ============================================
 // Routes
 // ============================================
+app.use('/api/auth/password', passwordRoutes);
+app.use('/api/auth/oauth', oauthRoutes);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/auth', sessionRoutes);
+registerEmailRoutes(app);
+registerTwoFactorRoutes(app);
+registerProfileRoutes(app);
 
 // Health check
 app.get('/', (req, res) => {
@@ -72,8 +82,6 @@ app.get('/', (req, res) => {
 });
 
 // Vos routes OAuth et Password
-app.use('/api/auth/password', passwordRoutes);
-app.use('/api/auth/oauth', oauthRoutes);
 
 // ============================================
 // Test Routes pour OAuth (à retirer en production)
