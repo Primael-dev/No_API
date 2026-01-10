@@ -1,55 +1,75 @@
-// Version SIMPLIFIÉE pour commencer
+// src/services/passwordService.js
 import prisma from '../lib/prisma.js';
-import { sendEmail } from '../utils/emailService.js';
+import bcrypt from 'bcrypt';
 
-export const sendResetPasswordEmail = async (email) => {
-  console.log(`[SERVICE] Demande reset password pour: ${email}`);
-  
-  // 1. Chercher l'utilisateur (simulé)
-  // const user = await prisma.user.findUnique({ where: { email } });
-  // if (!user) return; // Pour la sécurité, on ne dit pas si l'email existe
-  
-  // 2. Générer token (simulé)
-  const token = 'simulated-token-' + Date.now();
-  
-  // 3. Envoyer email (simulé)
-  await sendEmail({
-    to: email,
-    subject: 'Reset your password',
-    html: `<p>Use this token: ${token}</p>`
-  });
-  
-  return { success: true };
-};
+const passwordService = {
+  // Oubli de mot de passe (déjà fait)
+  async sendResetPasswordEmail(email) {
+    console.log(`[SERVICE] sendResetPasswordEmail: ${email}`);
+    // Logique d'envoi d'email (à implémenter)
+    return { success: true };
+  },
 
-export const resetPassword = async (token, newPassword) => {
-  console.log(`[SERVICE] Reset avec token: ${token}, nouveau mdp: ${newPassword}`);
-  
-  // Vérifier token, expiration, etc.
-  if (!token.startsWith('simulated-token-')) {
-    throw new Error('Invalid token');
+  // Réinitialisation de mot de passe (À FAIRE)
+  async resetPassword(token, newPassword) {
+    console.log(`[SERVICE] resetPassword called`);
+    console.log(`Token: ${token}, New password: ${newPassword}`);
+    
+    // 1. Vérifier que le token existe
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true }
+    });
+
+    if (!resetToken) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    // 2. Vérifier l'expiration (1 heure)
+    const now = new Date();
+    if (resetToken.expiresAt < now) {
+      // Supprimer le token expiré
+      await prisma.passwordResetToken.delete({
+        where: { id: resetToken.id }
+      });
+      throw new Error('Reset token has expired');
+    }
+
+    // 3. Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 4. Mettre à jour le mot de passe utilisateur
+    await prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { password: hashedPassword }
+    });
+
+    // 5. Supprimer le token utilisé
+    await prisma.passwordResetToken.delete({
+      where: { id: resetToken.id }
+    });
+
+    // 6. Révoquer tous les refresh tokens (sécurité)
+    await prisma.refreshToken.updateMany({
+      where: { 
+        userId: resetToken.userId,
+        revokedAt: null 
+      },
+      data: { revokedAt: now }
+    });
+
+    return { 
+      success: true, 
+      userId: resetToken.userId 
+    };
+  },
+
+  // Changement de mot de passe (pour plus tard)
+  async changePassword(userId, currentPassword, newPassword) {
+    console.log(`[SERVICE] changePassword pour user: ${userId}`);
+    // À implémenter
+    return { success: true };
   }
-  
-  if (newPassword.length < 8) {
-    throw new Error('Password must be at least 8 characters');
-  }
-  
-  return { success: true };
 };
 
-export const changePassword = async (userId, currentPassword, newPassword) => {
-  console.log(`[SERVICE] Change password pour user: ${userId}`);
-  
-  if (newPassword.length < 8) {
-    throw new Error('New password must be at least 8 characters');
-  }
-  
-  return { success: true };
-};
-
-// Export par défaut
-export default {
-  sendResetPasswordEmail,
-  resetPassword,
-  changePassword
-};
+export default passwordService;
