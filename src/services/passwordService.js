@@ -1,4 +1,3 @@
-// src/services/passwordService.js
 import prisma from '../lib/prisma.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -11,43 +10,32 @@ const passwordService = {
    */
   async sendResetPasswordEmail(email) {
     try {
-      // Dans sendResetPasswordEmail
-console.log(`[DEBUG] Recherche email: "${email}"`);
-console.log(`[DEBUG] Emails dans la base:`);
-const allUsers = await prisma.user.findMany({
-  select: { email: true }
-});
-allUsers.forEach(u => console.log(`  - "${u.email}"`));
       console.log(`[PASSWORD SERVICE] Demande reset pour: ${email}`);
       
-      // 1. Vérifier si l'utilisateur existe
+      
       const user = await prisma.user.findUnique({
         where: { email }
       });
 
-      // Pour des raisons de sécurité, on ne révèle pas si l'email existe
       if (!user) {
         console.log(`[PASSWORD SERVICE] Aucun utilisateur avec email: ${email}`);
-        return; // On ne fait rien, mais on ne le dit pas
+        return; 
       }
 
-      // 2. Vérifier si l'utilisateur a un mot de passe (pas OAuth only)
       if (!user.password) {
         console.log(`[PASSWORD SERVICE] Utilisateur ${email} n'a pas de mot de passe (OAuth only)`);
-        // On pourrait envoyer un email spécial pour OAuth users
         return;
       }
 
-      // 3. Supprimer les anciens tokens de cet utilisateur
       await prisma.passwordResetToken.deleteMany({
         where: { userId: user.id }
       });
 
-      // 4. Générer un nouveau token sécurisé
+ 
       const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 3600000); // 1 heure
+      const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
-      // 5. Sauvegarder le token en base
+      // Save token to DB
       await prisma.passwordResetToken.create({
         data: {
           token,
@@ -56,11 +44,11 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         }
       });
 
-      // 6. Construire le lien de réinitialisation
+  
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
       const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
-      // 7. Envoyer l'email
+
       await sendEmail({
         to: user.email,
         subject: 'Réinitialisation de votre mot de passe',
@@ -112,19 +100,17 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
 
   /**
    * Réinitialise le mot de passe avec un token
-   * @param {string} token - Token de réinitialisation
-   * @param {string} newPassword - Nouveau mot de passe
+   * @param {string} token 
+   * @param {string} newPassword 
    */
   async resetPassword(token, newPassword) {
     try {
       console.log(`[PASSWORD SERVICE] Tentative reset avec token: ${token.substring(0, 10)}...`);
       
-      // 1. Validation du mot de passe
       if (!newPassword || newPassword.length < 8) {
         throw new Error('Le mot de passe doit contenir au moins 8 caractères');
       }
 
-      // 2. Rechercher le token
       const resetToken = await prisma.passwordResetToken.findUnique({
         where: { token },
         include: { user: true }
@@ -134,17 +120,14 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         throw new Error('Token de réinitialisation invalide ou expiré');
       }
 
-      // 3. Vérifier l'expiration
       const now = new Date();
       if (resetToken.expiresAt < now) {
-        // Nettoyer le token expiré
         await prisma.passwordResetToken.delete({
           where: { id: resetToken.id }
         });
         throw new Error('Le token de réinitialisation a expiré');
       }
 
-      // 4. Vérifier que l'utilisateur existe toujours
       if (!resetToken.user) {
         await prisma.passwordResetToken.delete({
           where: { id: resetToken.id }
@@ -152,16 +135,13 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         throw new Error('Utilisateur non trouvé');
       }
 
-      // 5. Vérifier que le compte n'est pas désactivé
       if (resetToken.user.disabledAt) {
         throw new Error('Ce compte est désactivé');
       }
 
-      // 6. Hasher le nouveau mot de passe
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // 7. Mettre à jour le mot de passe de l'utilisateur
       await prisma.user.update({
         where: { id: resetToken.userId },
         data: { 
@@ -170,35 +150,33 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         }
       });
 
-      // 8. Supprimer le token utilisé
+
       await prisma.passwordResetToken.delete({
         where: { id: resetToken.id }
       });
 
-      // 9. Révoquer tous les tokens de rafraîchissement existants (sécurité)
       await prisma.refreshToken.updateMany({
         where: { 
           userId: resetToken.userId,
           revokedAt: null 
         },
         data: { 
-          revokedAt: now,
-          updatedAt: now
+          revokedAt: now
+         
         }
       });
 
-      // 10. Enregistrer dans l'historique
       await prisma.loginHistory.create({
         data: {
           userId: resetToken.userId,
           success: true,
-          ipAddress: 'SYSTEM', // Pas disponible dans ce contexte
+          ipAddress: 'SYSTEM', 
           userAgent: 'PASSWORD_RESET',
           createdAt: now
         }
       });
 
-      // 11. Envoyer un email de confirmation
+  
       await sendEmail({
         to: resetToken.user.email,
         subject: 'Votre mot de passe a été réinitialisé',
@@ -243,9 +221,8 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
     } catch (error) {
       console.error('[PASSWORD SERVICE] Erreur resetPassword:', error);
       
-      // Ne pas révéler trop d'informations dans l'erreur
       if (error.message.includes('Token') || error.message.includes('expiré')) {
-        throw error; // Garder les messages spécifiques aux tokens
+        throw error; 
       }
       
       throw new Error('Échec de la réinitialisation du mot de passe');
@@ -254,15 +231,14 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
 
   /**
    * Change le mot de passe (utilisateur connecté)
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} currentPassword - Mot de passe actuel
-   * @param {string} newPassword - Nouveau mot de passe
+   * @param {string} userId 
+   * @param {string} currentPassword
+   * @param {string} newPassword 
    */
   async changePassword(userId, currentPassword, newPassword) {
     try {
       console.log(`[PASSWORD SERVICE] Tentative changement pour user: ${userId}`);
       
-      // 1. Validation
       if (!currentPassword || !newPassword) {
         throw new Error('Les deux mots de passe sont requis');
       }
@@ -275,7 +251,7 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         throw new Error('Le nouveau mot de passe doit être différent de l\'ancien');
       }
 
-      // 2. Récupérer l'utilisateur
+      // Fetch user
       const user = await prisma.user.findUnique({
         where: { id: userId }
       });
@@ -292,16 +268,14 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         throw new Error('Ce compte est désactivé');
       }
 
-      // 3. Vérifier le mot de passe actuel
       const isValidPassword = await bcrypt.compare(currentPassword, user.password);
       if (!isValidPassword) {
         throw new Error('Mot de passe actuel incorrect');
       }
 
-      // 4. Hasher le nouveau mot de passe
+
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // 5. Mettre à jour le mot de passe
       await prisma.user.update({
         where: { id: userId },
         data: { 
@@ -310,7 +284,7 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
         }
       });
 
-      // 6. Envoyer un email de confirmation
+      // Send confirmation email
       await sendEmail({
         to: user.email,
         subject: 'Votre mot de passe a été changé',
@@ -346,13 +320,14 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
 
     } catch (error) {
       console.error('[PASSWORD SERVICE] Erreur changePassword:', error);
-      throw error; // Propager l'erreur originale
+      throw error; 
     }
   },
 
   /**
    * Vérifie si un token de réinitialisation est valide
-   * @param {string} token - Token à vérifier
+   * @param {string} token
+   * 
    */
   async validateResetToken(token) {
     try {
@@ -366,7 +341,7 @@ allUsers.forEach(u => console.log(`  - "${u.email}"`));
       }
 
       if (resetToken.expiresAt < new Date()) {
-        // Nettoyer le token expiré
+
         await prisma.passwordResetToken.delete({
           where: { id: resetToken.id }
         });

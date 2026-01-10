@@ -16,7 +16,7 @@ const oauthController = {
       const { code } = req.query
       const { user, accessToken, refreshToken } = await oauthService.handleGoogleCallback(code)
       
-      // Rediriger vers le frontend avec les tokens
+      
       res.redirect(
         `${process.env.FRONTEND_URL}/oauth/callback?` +
         `access_token=${accessToken}&` +

@@ -4,19 +4,15 @@
 	import prisma from '../utils/prisma.js';
 
 	export const authController = {
-	// Inscription
 	async register(req, res) {
 		try {
 		const { email, password, firstName, lastName } = req.body;
 
-		// Créer l'utilisateur
 		const user = await authService.register({ email, password, firstName, lastName });
 
-		// Générer les tokens
 		const accessToken = jwt.sign({ userId: user.id }, process.env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
 		const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-		// Sauvegarder le refresh token
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7);
 		
@@ -44,7 +40,6 @@
 		}
 	},
 
-	// Connexion
 	async login(req, res) {
 		try {
 		const { email, password } = req.body;
@@ -56,11 +51,9 @@
 
 		const user = await authService.login(email, password, loginInfo);
 
-		// Générer les tokens
 		const accessToken = jwt.sign({ userId: user.id }, process.env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
 		const refreshToken = jwt.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-		// Sauvegarder le refresh token
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7);
 		
@@ -88,7 +81,6 @@
 		}
 	},
 
-	// Déconnexion
 	async logout(req, res) {
 		try {
 		const userId = req.user.userId;
