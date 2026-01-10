@@ -80,6 +80,7 @@ const passwordService = {
         `,
         text: `Réinitialisation de mot de passe\n\n
                Cliquez sur ce lien pour réinitialiser votre mot de passe : ${resetLink}\n
+               LE TOKEN EST ${token}\n
                Ce lien expirera dans 1 heure.`
       });
 
