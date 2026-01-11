@@ -1,10 +1,19 @@
 import "dotenv/config";
-import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
+import Database from "better-sqlite3"; 
 import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
 
-const connectionString = process.env.DATABASE_URL;
+// 1. Nettoyage du chemin
+const connectionString = process.env.DATABASE_URL.replace('file:', '');
 
-const adapter = new PrismaBetterSQLite3({ url: connectionString });
+// 2. Initialisation du driver SQLite
+const sqlite = new Database(connectionString);
+
+// 3. Initialisation de l'adaptateur
+// Si PrismaBetterSQLite3 est une classe, on l'instancie
+const adapter = new PrismaBetterSQLite3(sqlite);
+
+// 4. Initialisation du client Prisma
 const prisma = new PrismaClient({ adapter });
 
 export default prisma;
