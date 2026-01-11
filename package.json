@@ -33,6 +33,7 @@
     "@prisma/adapter-better-sqlite3": "^7.2.0",
     "@prisma/client": "^5.22.0",
     "argon2": "^0.44.0",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.5.0",

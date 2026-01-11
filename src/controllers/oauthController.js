@@ -1,33 +1,26 @@
-import oauthService from '../services/oauthService.js'
-import jwt from 'jsonwebtoken'
+import {
+  getGoogleAuthURL,
+  handleGoogleCallback
+} from "../services/oauthService.js";
 
-const oauthController = {
-  async redirectToGoogle(req, res) {
-    try {
-      const authUrl = oauthService.getGoogleAuthUrl()
-      res.redirect(authUrl)
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to initiate OAuth flow' })
-    }
-  },
+export const googleRedirect = (req, res) => {
+  res.redirect(getGoogleAuthURL());
+};
 
-  async handleGoogleCallback(req, res) {
-    try {
-      const { code } = req.query
-      const { user, accessToken, refreshToken } = await oauthService.handleGoogleCallback(code)
-      
-      
-      res.redirect(
-        `${process.env.FRONTEND_URL}/oauth/callback?` +
-        `access_token=${accessToken}&` +
-        `refresh_token=${refreshToken}&` +
-        `user_id=${user.id}`
-      )
-    } catch (error) {
-      console.error('OAuth callback error:', error)
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`)
-    }
+export const googleCallback = async (req, res, next) => {
+  try {
+    const { code } = req.query;
+    if (!code) throw new Error("Missing code");
+
+    const tokens = await handleGoogleCallback(code, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"]
+    });
+
+    res.redirect(
+      `${process.env.FRONTEND_URL}/oauth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`
+    );
+  } catch (err) {
+    next(err);
   }
-}
-
-export default oauthController
+};

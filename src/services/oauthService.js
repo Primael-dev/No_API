@@ -1,112 +1,111 @@
-import { google } from 'googleapis'
-import bcrypt from 'bcrypt'
-import crypto from 'crypto'
-import jwt from 'jsonwebtoken'
-import prisma from '../lib/prisma.js'
+  import prisma from '../utils/prisma.js';
+import jwt from "jsonwebtoken";
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.BACKEND_URL}/api/auth/oauth/google/callback`
-)
+/**
+ * URL Google OAuth
+ */
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-const oauthService = {
-  getGoogleAuthUrl() {
-    const scopes = [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile'
-    ]
+export const getGoogleAuthURL = () => {
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "offline",
+    prompt: "consent"
+  });
 
-    return oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: scopes,
-      prompt: 'consent'
+  return `${GOOGLE_AUTH_URL}?${params.toString()}`;
+};
+
+/**
+ * Callback Google OAuth
+ */
+export const handleGoogleCallback = async (code, meta = {}) => {
+  // 1. Exchange code -> Google token
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      code,
+      redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+      grant_type: "authorization_code"
     })
-  },
+  });
 
-  async handleGoogleCallback(code) {
-    try {
-   
-      const { tokens } = await oauth2Client.getToken(code)
-      oauth2Client.setCredentials(tokens)
-
-      const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client })
-      const { data } = await oauth2.userinfo.get()
-
-      let user = await prisma.user.findUnique({
-        where: { email: data.email }
-      })
-
-      if (!user) {
-
-        user = await prisma.user.create({
-          data: {
-            email: data.email,
-            firstName: data.given_name,
-            lastName: data.family_name,
-            emailVerifiedAt: new Date(), 
-            password: null 
-          }
-        })
-      }
-
-      const oauthAccount = await prisma.oAuthAccount.upsert({
-        where: {
-          provider_providerId: {
-            provider: 'google',
-            providerId: data.id
-          }
-        },
-        update: {},
-        create: {
-          provider: 'google',
-          providerId: data.id,
-          userId: user.id
-        }
-      })
-
-      const accessToken = jwt.sign(
-        { 
-          id: user.id, 
-          email: user.email 
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_ACCESS_EXPIRY || '15m' }
-      )
-
-      const refreshToken = crypto.randomBytes(40).toString('hex')
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 jours
-
-      await prisma.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId: user.id,
-          expiresAt,
-          userAgent: req.headers['user-agent'],
-          ipAddress: req.ip
-        }
-      })
-
-      await prisma.loginHistory.create({
-        data: {
-          userId: user.id,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
-          success: true
-        }
-      })
-
-      return {
-        user,
-        accessToken,
-        refreshToken
-      }
-
-    } catch (error) {
-      console.error('OAuth error:', error)
-      throw new Error('Failed to authenticate with Google')
-    }
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) {
+    throw new Error("Google token exchange failed");
   }
-}
 
-export default oauthService   
+  // 2. Fetch Google user
+  const userRes = await fetch(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
+    }
+  );
+
+  const googleUser = await userRes.json();
+
+  // 3. Find or create user
+  let user = await prisma.user.findUnique({
+    where: { email: googleUser.email }
+  });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: googleUser.email,
+        emailVerifiedAt: new Date()
+      }
+    });
+  }
+
+  // 4. Link OAuth account
+  await prisma.oAuthAccount.upsert({
+    where: {
+      provider_providerId: {
+        provider: "google",
+        providerId: googleUser.sub
+      }
+    },
+    update: {},
+    create: {
+      provider: "google",
+      providerId: googleUser.sub,
+      userId: user.id
+    }
+  });
+
+  // 5. Generate JWT
+  const accessToken = jwt.sign(
+    { userId: user.id },
+    process.env.JWT_ACCESS_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user.id },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  // 6. Store refresh token (sessions)
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId: user.id,
+      userAgent: meta.userAgent,
+      ipAddress: meta.ip,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  return { accessToken, refreshToken };
+};
