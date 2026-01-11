@@ -5,7 +5,7 @@ export function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-   throw new UnauthorizedException('Missing or invalid authorization header' );
+    throw new UnauthorizedException('Missing or invalid authorization header' );
   }
 
   const token = authHeader.slice(7);

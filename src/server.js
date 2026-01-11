@@ -1,14 +1,14 @@
-// ============================================
-// src/server.js - Express Server
-// ============================================
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { registerAuthRoutes } from './routes/auth.js';
+import authRoutes from './routes/auth.js';
+import sessionRoutes from './routes/sessions.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
+import { registerEmailRoutes } from './routes/email.js';
+import { registerTwoFactorRoutes } from './routes/twoFactor.js';
+
 
 dotenv.config();
 
@@ -22,6 +22,15 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// ============================================
+// Routes
+// ============================================
+
+app.use('/api/auth', authRoutes);
+app.use('/api/auth', sessionRoutes);
+registerEmailRoutes(app);
+registerTwoFactorRoutes(app);
 
 
 // Health check

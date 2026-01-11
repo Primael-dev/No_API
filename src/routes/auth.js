@@ -1,21 +1,16 @@
-import { Router } from "express";
-import { AuthController } from "#controllers/authController";
-import { authMiddleware } from "../middleware/auth.js";
-import { asyncHandler } from "#utils/async-handler";
+import express from 'express';
+import { authController } from '../controllers/authController.js';
+import { authMiddleware } from '../middleware/auth.js';
 
-const router = Router();
+const router = express.Router();
 
 // Inscription
-router.post("/register", asyncHandler(AuthController.register));
+router.post('/register', authController.register);
 
 // Connexion
-router.post("/login", asyncHandler(AuthController.login));
+router.post('/login', authController.login);
 
-// Déconnexion
-router.post("/logout", authMiddleware, asyncHandler(AuthController.logout));
-
-export function registerAuthRoutes(server) {
-  app.use("/api/auth", router);
-}
+// Déconnexion (protégé)
+router.post('/logout', authMiddleware, authController.logout);
 
 export default router;

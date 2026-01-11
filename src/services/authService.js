@@ -1,68 +1,87 @@
-import prisma from '#utils/prisma';
-import { hashPassword, verifyPassword } from '#utils/password';
-import { ConflictException, UnauthorizedException } from '#utils/exceptions';
+import prisma from '../utils/prisma.js';
+import bcrypt from 'bcryptjs';
 
-export class AuthService {
-	// Inscription
-	static async register(userData){
-		const existingUser = await prisma.user.findUnique({
-			where: {email: userData.email},
-		});
+export const authService = {
+  // Inscription
+  async register(userData) {
+    const { email, password, firstName, lastName } = userData;
 
-		if (existingUser) {
-			throw new ConflictException("Cet email est déjà utilisé");
-		}
+    // Vérifier si l'email existe
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
 
-		 const hashedPassword = await hashPassword(userData.password);
+    if (existingUser) {
+      const error = new Error('Cet email est déjà utilisé');
+      error.statusCode = 409;
+      throw error;
+    }
 
-		 return await prisma.user.create({
-			data: {
-				email: userData.email, 
-				password: hashedPassword,
-				firstName: userData.firstName,
-				lastName: userData.lastName,
-			},
-		});
-	}
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-	// Connexion 
-	static async login(email, password, loginInfo){
-		const user = await prisma.user.findUnique({ where: {email }});
+    // Créer l'utilisateur
+    return await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName
+      }
+    });
+  },
 
-		let isPasswordValid = false;
+  // Connexion
+  async login(email, password, loginInfo) {
+    // Chercher l'utilisateur
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
 
-		if(user){
-			isPasswordValid = await verifyPassword(user.password, password)
-		}
+    let isPasswordValid = false;
 
-		// Enregistrement dans l'historique
-		await prisma.loginHistory.create({
-			data: {
-				userId: user ? user.id : null,
-				ipAddress: loginInfo.ipAddress,
-				userAgent: loginInfo.userAgent,
-				success: (user !== null && isPasswordValid === true)
-			}
-		});
+    if (user && user.password) {
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    }
 
-		// Gestion de l'échec
-		if(!user || !isPasswordValid){
-			throw new UnauthorizedException("Identifiants incorrects");
-		}
+    // Enregistrer dans l'historique
+    await prisma.loginHistory.create({
+      data: {
+        userId: user ? user.id : null,
+        ipAddress: loginInfo.ipAddress,
+        userAgent: loginInfo.userAgent,
+        success: (user !== null && isPasswordValid)
+      }
+    });
 
-		return user;	
-	}
+    // Vérifier les identifiants
+    if (!user || !isPasswordValid) {
+      const error = new Error('Identifiants incorrects');
+      error.statusCode = 401;
+      throw error;
+    }
 
-	// Déconnexion
-	static async logout(userId, token){
-		if(!token) return;
+    // Vérifier que le compte n'est pas désactivé
+    if (user.disabledAt) {
+      const error = new Error('Ce compte a été désactivé');
+      error.statusCode = 401;
+      throw error;
+    }
 
-		return await prisma.blacklistedAccessToken.create({
-			data: {
-				token: token,
-				userId: userId,
-				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-			},
-		});
-	}
-}
+    return user;
+  },
+
+  // Déconnexion
+  async logout(userId, token) {
+    if (!token) return;
+
+    // Ajouter le token à la blacklist
+    return await prisma.blacklistedAccessToken.create({
+      data: {
+        token,
+        userId,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+      }
+    });
+  }
+};
