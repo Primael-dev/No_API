@@ -45,9 +45,9 @@ Le serveur écoute par défaut sur `http://localhost:3000`.
 
 ## 📁 Collection Postman
 
-Vous pouvez importer ou ouvrir la collection Postman utilisée pour tester les endpoints :
+Vous pouvez importer la collection Postman utilisée pour tester les endpoints :
 
-https://lihounhintoe-8130421.postman.co/workspace/Kevin's-Workspace~b144d2ee-e8b2-47a7-815f-a93aa1a0d651/request/50554669-ec2b4d32-7fd4-4660-b810-5d2f78722b15?action=share&creator=50554669&ctx=documentation&active-environment=50554669-6607e60c-d06a-426b-bcc6-8d38a2aea225
+disponible dans le dossier Collection en fichier json
 
 ## 🧪 Tests & débogage
 
