@@ -91,7 +91,7 @@
 	// Déconnexion
 	async logout(req, res) {
 		try {
-		const userId = req.user.userId;
+		const userId = req.user.id;
 		const token = req.headers.authorization?.split(' ')[1];
 
 		if (token) {
