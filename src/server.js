@@ -13,6 +13,7 @@ import { registerTwoFactorRoutes } from './routes/twoFactor.js';
 import { registerProfileRoutes } from './routes/profile.routes.js';
 
 
+
 // Import de vos routes
 import passwordRoutes from './routes/password.js';
 import oauthRoutes from './routes/oauth.js';
